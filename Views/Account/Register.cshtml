@@ -1,0 +1,69 @@
+@model RegisterViewModel
+@{
+    ViewData["Title"] = "Create Account";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — MovieWatchlist</title>
+  <!-- External stylesheet -->
+  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+  <!-- Internal page-level style -->
+  <style>
+    body { margin:0; }
+    .strength-bar  { height:4px; border-radius:2px; background:var(--border); margin-top:6px; }
+    .strength-fill { height:100%; border-radius:2px; transition:width 0.3s,background 0.3s; width:0; }
+  </style>
+</head>
+<body class="auth-page">
+<div class="auth-card" style="max-width:460px">
+  <div class="auth-brand">
+    <span class="brand-icon">🎬</span>
+    <h1>Create Account</h1>
+    <p>Start tracking your movies</p>
+  </div>
+
+  <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+  <form asp-action="Register" method="post" novalidate onsubmit="return validateRegisterForm()">
+    @Html.AntiForgeryToken()
+
+    <div class="form-group">
+      <label class="form-label" for="regName">Full Name</label>
+      <input asp-for="FullName" id="regName" class="form-control" placeholder="Jane Doe"/>
+      <span asp-validation-for="FullName" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="regEmail">Email Address</label>
+      <input asp-for="Email" id="regEmail" class="form-control" type="email" placeholder="you@example.com"/>
+      <span asp-validation-for="Email" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="regPass">Password</label>
+      <input asp-for="Password" id="regPass" class="form-control" type="password"
+             placeholder="Min. 8 characters" oninput="updateStrength(this.value)"/>
+      <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+      <span asp-validation-for="Password" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="regConfirm">Confirm Password</label>
+      <input asp-for="ConfirmPassword" id="regConfirm" class="form-control" type="password" placeholder="Re-enter password"/>
+      <span asp-validation-for="ConfirmPassword" class="field-validation-error"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px">Create Account</button>
+  </form>
+
+  <div class="auth-footer">
+    Already have an account? <a asp-action="Login">Sign in</a>
+  </div>
+</div>
+<script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

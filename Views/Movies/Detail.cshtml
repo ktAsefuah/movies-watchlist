@@ -1,0 +1,108 @@
+@model DetailViewModel
+@{
+    ViewData["Title"] = Model.Entry.Movie.Title;
+    // Internal page-level style
+    ViewData["InlineStyle"] = ".detail-form-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; }";
+}
+
+<div class="page-header">
+  <div>
+    <h2 id="detailTitle">@Model.Entry.Movie.Title</h2>
+    <p>@Model.Entry.Movie.ReleaseYear · @Model.Entry.Movie.Genre</p>
+  </div>
+  <a asp-controller="Home" asp-action="Index" class="btn btn-secondary btn-sm">← Dashboard</a>
+</div>
+
+<div class="detail-layout">
+  <!-- Poster -->
+  <div>
+    <div class="detail-poster-ph">🎬</div>
+  </div>
+
+  <!-- Info + form -->
+  <div>
+    <p class="detail-desc">@(Model.Entry.Movie.Description ?? "No description available.")</p>
+
+    <form method="post" asp-action="Detail" asp-route-id="@Model.Entry.Id">
+      @Html.AntiForgeryToken()
+      <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+      <div class="detail-form-card">
+        <div class="form-row">
+          <!-- Status -->
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="Status" class="form-control" id="statusSelect">
+                @foreach (WatchStatus s in Enum.GetValues(typeof(WatchStatus)))
+                {
+                  <!option value="@s" @(Model.Status == s ? "selected" : "")>@s</!option>
+                }
+            </select>
+            
+          </div>
+          <!-- Priority -->
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select name="PriorityLevel" class="form-control">
+              <!option value="1" @(Model.PriorityLevel == 1 ? "selected" : "")>🔴 Highest</!option>
+              <!option value="2" @(Model.PriorityLevel == 2 ? "selected" : "")>🟠 High</!option>
+              <!option value="3" @(Model.PriorityLevel == 3 ? "selected" : "")>🟡 Medium</!option>
+              <!option value="4" @(Model.PriorityLevel == 4 ? "selected" : "")>🟢 Low</!option>
+              <!option value="5" @(Model.PriorityLevel == 5 ? "selected" : "")>⚪ Lowest</!option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Star rating -->
+        <div class="form-group">
+          <label class="form-label">My Rating</label>
+          <div class="star-input" id="starInput">
+            @for (int i = 1; i <= 5; i++)
+            {
+              <span class="@(Model.Rating >= i ? "active" : "")">★</span>
+            }
+          </div>
+          <input type="hidden" name="Rating" id="ratingValue" value="@Model.Rating"/>
+        </div>
+
+        <!-- Notes / comment -->
+        <div class="form-group">
+          <label class="form-label">
+            Notes / Review
+            <button type="button" class="btn btn-secondary btn-sm" style="margin-left:8px;padding:3px 10px;font-size:11px"
+                    onclick="promptNotes()">✏ Edit via prompt</button>
+          </label>
+          <textarea name="Comment" id="notesInput" class="form-control" rows="3"
+                    placeholder="What did you think? (optional)">@Model.Comment</textarea>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="detail-actions">
+        <button type="submit" name="action" value="save" class="btn btn-success"
+                onclick="return validateDetailForm()">💾 Save</button>
+
+        <button type="submit" name="action" value="markWatched" class="btn btn-primary"
+                onclick="return confirmMarkWatched('@Html.Raw(Model.Entry.Movie.Title.Replace("'","\\'"))')">
+          ✅ Mark as Watched
+        </button>
+
+        <a asp-action="Delete" asp-route-id="@Model.Entry.Id" class="btn btn-danger"
+           onclick="return confirmDelete('@Html.Raw(Model.Entry.Movie.Title.Replace("'","\\'"))')">
+          🗑 Delete
+        </a>
+      </div>
+    </form>
+
+    <div style="margin-top:16px">
+      <a asp-controller="Home"   asp-action="Index"   class="btn btn-secondary">← Dashboard</a>
+      <a asp-controller="Movies" asp-action="History" class="btn btn-secondary" style="margin-left:8px">📽 History</a>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+<script>
+  initStarInput('starInput', 'ratingValue');
+</script>
+}

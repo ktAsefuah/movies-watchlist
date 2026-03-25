@@ -1,0 +1,90 @@
+@model SearchViewModel
+@{ ViewData["Title"] = "Search Movies"; }
+
+<div class="page-header">
+  <div><h2>Search Movies</h2><p>Find a film and add it to your watchlist</p></div>
+  <a asp-controller="Home" asp-action="Index" class="btn btn-secondary btn-sm">← Dashboard</a>
+</div>
+
+<!-- Search form -->
+<form method="get" asp-action="Search" asp-controller="Movies" style="display:flex;gap:10px;margin-bottom:24px">
+  <div class="topbar-search" style="max-width:100%;flex:1">
+    <span class="search-icon">🔍</span>
+    <input type="text" name="query" value="@Model.Query"
+           class="form-control" style="padding-left:38px;border-radius:999px"
+           placeholder="Search by title or genre…" id="searchInput"/>
+  </div>
+  <button type="submit" class="btn btn-primary"
+          onclick="if(!document.getElementById('searchInput').value.trim()){alert('Please enter a search term.');return false;}">
+    Search
+  </button>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.Query) && !Model.Results.Any())
+{
+  <div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <p>No results for "@Model.Query"</p>
+    <small>Try a different title or genre.</small>
+  </div>
+}
+else if (Model.Results.Any())
+{
+  <div id="resultsList">
+    @foreach (var movie in Model.Results)
+    {
+      <div class="search-result-card"
+           onclick="openAddModal(@movie.Id, '@Html.Raw(movie.Title.Replace("'","\\'"  ))', @movie.ReleaseYear, '@Html.Raw((movie.Genre??"").Replace("'","\\'"  ))', '@Html.Raw((movie.Description??"").Replace("'","\\'").Replace("\n"," "))')">
+        <div class="search-poster-ph">🎬</div>
+        <div class="search-info">
+          <div class="search-title">@movie.Title (@movie.ReleaseYear)</div>
+          <div class="search-meta">@movie.Genre</div>
+          <div class="search-desc">@movie.Description</div>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<!-- Add to Watchlist modal -->
+<div class="modal-overlay hidden" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="mTitle"></span>
+      <button class="modal-close" type="button" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text3);margin-bottom:8px" id="mGenre"></div>
+      <div style="font-size:14px;color:var(--text2);line-height:1.5;margin-bottom:16px" id="mDesc"></div>
+
+      <form method="post" asp-controller="Movies" asp-action="Add" id="addForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="movieId" id="addMovieId"/>
+        <div class="form-group">
+          <label class="form-label">Add as</label>
+          <select name="status" class="form-control">
+            <option value="Want">Want to Watch</option>
+            <option value="Watching">Currently Watching</option>
+            <option value="Watched">Already Watched</option>
+          </select>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer-btns">
+      <button class="btn btn-secondary" type="button" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-primary" type="button"
+              onclick="document.getElementById('addForm').submit()">
+        Add to Watchlist ▾
+      </button>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+<script>
+  // Close modal on backdrop click
+  document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+  });
+</script>
+}

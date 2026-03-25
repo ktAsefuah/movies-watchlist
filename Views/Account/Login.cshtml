@@ -1,0 +1,61 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Log In";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Log In — MovieWatchlist</title>
+  <!-- External stylesheet -->
+  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+  <!-- Internal page-level style -->
+  <style>
+    body { margin:0; }
+    .strength-bar  { height:4px; border-radius:2px; background:var(--border); margin-top:6px; }
+    .strength-fill { height:100%; border-radius:2px; transition:width 0.3s,background 0.3s; width:0; }
+  </style>
+</head>
+<body class="auth-page">
+<div class="auth-card">
+  <div class="auth-brand">
+    <span class="brand-icon">🎬</span>
+    <h1>MovieWatchlist</h1>
+    <p>Sign in to your account</p>
+  </div>
+
+  <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
+  <form asp-action="Login" method="post" novalidate onsubmit="return validateLoginForm()">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]"/>
+
+    <div class="form-group">
+      <label class="form-label" for="loginEmail">Email Address</label>
+      <input asp-for="Email" id="loginEmail" class="form-control" type="email" placeholder="you@example.com"/>
+      <span asp-validation-for="Email" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="loginPass">Password</label>
+      <input asp-for="Password" id="loginPass" class="form-control" type="password" placeholder="••••••••"/>
+      <span asp-validation-for="Password" class="field-validation-error"></span>
+    </div>
+
+    <div class="form-group" style="display:flex;align-items:center;gap:8px">
+      <input asp-for="RememberMe" type="checkbox" id="rememberMe" style="width:auto"/>
+      <label for="rememberMe" style="font-size:13px;color:var(--text2);text-transform:none;letter-spacing:0">Remember me</label>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+  </form>
+
+  <div class="auth-footer">
+    Don't have an account? <a asp-action="Register">Register here</a>
+  </div>
+</div>
+<script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

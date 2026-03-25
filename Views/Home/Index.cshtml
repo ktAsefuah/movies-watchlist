@@ -1,0 +1,84 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    // Internal (page-level) style
+    ViewData["InlineStyle"] = @"
+        .movie-card { border-left: 3px solid var(--border); }
+        .movie-card.priority-1 { border-left-color: #C62828; }
+        .movie-card.priority-2 { border-left-color: #F9A825; }
+        .movie-card.priority-3 { border-left-color: #1565C0; }
+    ";
+}
+
+<!-- Stats row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon blue">🎬</div>
+    <div><div class="stat-value">@Model.TotalCount</div><div class="stat-label">Total Movies</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple">▶️</div>
+    <div><div class="stat-value">@Model.WatchingCount</div><div class="stat-label">Watching</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon amber">⭐</div>
+    <div><div class="stat-value">@Model.WantCount</div><div class="stat-label">Want to Watch</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">✅</div>
+    <div><div class="stat-value">@Model.WatchedCount</div><div class="stat-label">Watched</div></div>
+  </div>
+</div>
+
+<!-- Section header + filter -->
+<div class="section-header">
+  <div class="section-title">Your Watchlist</div>
+  <div class="section-controls">
+    <form method="get" asp-action="Index" asp-controller="Home">
+      <select name="filterStatus" class="filter-select" onchange="this.form.submit()">
+        <!option value="all"      @(Model.FilterStatus=="all"      ? "selected":"")>All</!option>
+        <!option value="Watching" @(Model.FilterStatus=="Watching" ? "selected":"")>Watching</!option>
+        <!option value="Want"     @(Model.FilterStatus=="Want"     ? "selected":"")>Want to Watch</!option>
+        <!option value="Watched"  @(Model.FilterStatus=="Watched"  ? "selected":"")>Watched</!option>
+        <!option value="Dropped"  @(Model.FilterStatus=="Dropped"  ? "selected":"")>Dropped</!option>
+</select>
+    </form>
+    <a asp-controller="Movies" asp-action="Search" class="btn btn-primary btn-sm">+ Add Movie</a>
+  </div>
+</div>
+
+@if (!Model.Watchlist.Any())
+{
+  <div class="empty-state">
+    <div class="empty-icon">🎬</div>
+    <p>Your watchlist is empty.</p>
+    <small>Search for a movie and add it to get started.</small><br/><br/>
+    <a asp-controller="Movies" asp-action="Search" class="btn btn-primary">Search Movies</a>
+  </div>
+}
+else
+{
+  <div class="movie-grid">
+    @foreach (var entry in Model.Watchlist)
+    {
+      var badgeClass = entry.Status switch {
+          WatchStatus.Watching => "badge-watching",
+          WatchStatus.Want     => "badge-want",
+          WatchStatus.Watched  => "badge-watched",
+          WatchStatus.Dropped  => "badge-dropped",
+          _                    => ""
+      };
+      <div class="movie-card priority-@entry.PriorityLevel"
+           onclick="window.location='/Movies/Detail/@entry.Id'" style="cursor:pointer">
+        <div class="movie-poster-ph">🎬</div>
+        <div class="movie-card-body">
+          <div class="movie-card-title">@entry.Movie.Title</div>
+          <div class="movie-card-year">@entry.Movie.ReleaseYear · @entry.Movie.Genre</div>
+          <div class="movie-card-footer">
+            <span class="badge @badgeClass">@entry.Status</span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+}

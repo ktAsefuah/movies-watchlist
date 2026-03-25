@@ -1,0 +1,52 @@
+@model List<WatchlistEntry>
+@{
+    ViewData["Title"] = "Watched History";
+    var reviews = ViewBag.Reviews as Dictionary<int, Review> ?? new Dictionary<int, Review>();
+}
+
+<div class="page-header">
+  <div>
+    <h2>Watched History</h2>
+    <p>@Model.Count film(s) watched</p>
+  </div>
+  <a asp-controller="Home" asp-action="Index" class="btn btn-secondary btn-sm">← Dashboard</a>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="empty-state">
+    <div class="empty-icon">📽</div>
+    <p>No watched movies yet.</p>
+    <small>Mark movies as watched on their detail page.</small>
+  </div>
+}
+else
+{
+  <div style="display:flex;flex-direction:column;gap:14px">
+    @foreach (var entry in Model)
+    {
+      reviews.TryGetValue(entry.MovieId, out var review);
+      var rating = review?.Rating ?? 0;
+      var stars = new string('★', rating) + new string('☆', 5 - rating);
+      <div class="search-result-card"
+           onclick="window.location='/Movies/Detail/@entry.Id'" style="cursor:pointer">
+        <div class="search-poster-ph">🎬</div>
+        <div class="search-info">
+          <div class="search-title">@entry.Movie.Title (@entry.Movie.ReleaseYear)</div>
+          <div class="search-meta">
+            @entry.Movie.Genre &bull; Watched @entry.DateAdded.ToString("MMM d, yyyy")
+          </div>
+          @if (rating > 0)
+          {
+            <div class="stars" style="font-size:14px;margin:4px 0">@stars</div>
+          }
+          @if (!string.IsNullOrWhiteSpace(review?.Comment))
+          {
+            <div class="search-desc">@review.Comment</div>
+          }
+        </div>
+        <span class="badge badge-watched" style="align-self:flex-start;flex-shrink:0">Watched</span>
+      </div>
+    }
+  </div>
+}

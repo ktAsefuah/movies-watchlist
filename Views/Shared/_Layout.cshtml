@@ -1,0 +1,93 @@
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<IdentityUser> SignInManager
+@inject UserManager<IdentityUser>  UserManager
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>@ViewData["Title"] — MovieWatchlist</title>
+  <!-- External stylesheet -->
+  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+  <!-- Internal page-level styles (set per view via ViewData) -->
+  @if (ViewData["InlineStyle"] != null)
+  {
+    <style>@Html.Raw(ViewData["InlineStyle"])</style>
+  }
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">🎬</span>
+      <div>
+        <h1>MovieWatchlist</h1>
+        <span>Track Every Film</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item" asp-controller="Home"   asp-action="Index"   data-href="/home">
+        <span class="nav-icon">🏠</span> Dashboard
+      </a>
+      <a class="nav-item" asp-controller="Movies" asp-action="Search"  data-href="/movies/search">
+        <span class="nav-icon">🔍</span> Search Movies
+      </a>
+      <a class="nav-item" asp-controller="Movies" asp-action="History" data-href="/movies/history">
+        <span class="nav-icon">📽</span> Watched History
+      </a>
+      <a class="nav-item" asp-controller="Account" asp-action="Profile" data-href="/account/profile">
+        <span class="nav-icon">👤</span> Profile
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      @if (SignInManager.IsSignedIn(User))
+      {
+        var user = await UserManager.GetUserAsync(User);
+        var displayName = user?.PhoneNumber ?? user?.Email ?? "User";
+        var initial = displayName.Length > 0 ? displayName[0].ToString().ToUpper() : "U";
+        <div class="sidebar-user">
+          <div class="user-avatar">@initial</div>
+          <div class="user-info">
+            <div class="user-name">@displayName</div>
+            <div class="user-email">@user?.Email</div>
+          </div>
+        </div>
+        <form asp-controller="Account" asp-action="Logout" method="post">
+          @Html.AntiForgeryToken()
+          <button type="submit" class="btn-logout-side">🚪 Log Out</button>
+        </form>
+      }
+    </div>
+  </aside>
+
+  <!-- ── Main area ── -->
+  <div class="main-area">
+    <!-- Topbar -->
+    <div class="topbar">
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">☰</button>
+      <span class="topbar-title">@(ViewData["Title"] ?? "Dashboard")</span>
+      <div class="topbar-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="topbarSearch" placeholder="Search Movies..."/>
+      </div>
+    </div>
+
+    <div class="page-content">
+      @if (TempData["Success"] != null)
+      {
+        <div class="alert alert-success">@TempData["Success"]</div>
+      }
+      @RenderBody()
+    </div>
+  </div>
+</div>
+
+<!-- External JavaScript -->
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

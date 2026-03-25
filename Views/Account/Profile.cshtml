@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "Profile";
+    string fullName = ViewBag.FullName ?? "User";
+    string email    = ViewBag.Email    ?? "";
+}
+
+<div class="page-header">
+  <div><h2>Your Profile</h2><p>Manage account settings</p></div>
+</div>
+
+<div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+
+  <!-- Profile form -->
+  <div class="form-card">
+    <h3 style="font-size:16px;font-weight:600;margin-bottom:20px">Account Details</h3>
+    <form method="post" asp-action="Profile" novalidate
+          onsubmit="
+            var pw = document.getElementById('profPass').value;
+            var cf = document.getElementById('profConfirm').value;
+            if(pw && pw.length < 8){ alert('Password must be at least 8 characters.'); return false; }
+            if(pw && pw !== cf){ alert('Passwords do not match.'); return false; }
+            return true;">
+      @Html.AntiForgeryToken()
+
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="fullName" class="form-control"
+               value="@fullName" required/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <!-- Inline style: read-only field -->
+        <input type="email" class="form-control" value="@email" readonly
+               style="opacity:0.6;cursor:not-allowed;background:var(--bg)"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          New Password
+          <span style="font-weight:300;text-transform:none;letter-spacing:0;font-size:11px">(leave blank to keep current)</span>
+        </label>
+        <input type="password" name="newPassword" id="profPass" class="form-control"
+               placeholder="Min. 8 characters"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" name="confirmPassword" id="profConfirm" class="form-control"
+               placeholder="Re-enter new password"/>
+      </div>
+
+      <div class="form-footer">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- User info card -->
+  <div class="form-card">
+    <h3 style="font-size:16px;font-weight:600;margin-bottom:20px">Account Info</h3>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+      <!-- Inline style: avatar circle -->
+      <div style="width:60px;height:60px;border-radius:50%;background:var(--primary);
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:24px;font-weight:700;color:white;flex-shrink:0">
+        @(fullName.Length > 0 ? fullName[0].ToString().ToUpper() : "U")
+      </div>
+      <div>
+        <div style="font-size:16px;font-weight:600;color:var(--text)">@fullName</div>
+        <div style="font-size:13px;color:var(--text3)">@email</div>
+      </div>
+    </div>
+    <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm);font-size:13px;color:var(--text2)">
+      Manage your watchlist from the <a asp-controller="Home" asp-action="Index" style="color:var(--primary);font-weight:500">Dashboard</a>.
+    </div>
+  </div>
+
+</div>
