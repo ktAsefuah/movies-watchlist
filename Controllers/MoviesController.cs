@@ -8,10 +8,6 @@ using MovieWatchlist.Models;
 
 namespace MovieWatchlist.Controllers
 {
-    /// <summary>
-    /// Handles all movie and watchlist operations:
-    /// Search, Add to Watchlist, Detail/Edit, Delete, History.
-    /// </summary>
     [Authorize]
     public class MoviesController : Controller
     {
@@ -24,12 +20,10 @@ namespace MovieWatchlist.Controllers
             _userManager = userManager;
         }
 
-        // ── SEARCH ────────────────────────────────────────────────────────────
         // GET /Movies/Search?query=inception
         public async Task<IActionResult> Search(string query)
         {
             var vm = new SearchViewModel { Query = query };
-
             if (!string.IsNullOrWhiteSpace(query))
             {
                 var q = query.Trim().ToLower();
@@ -38,47 +32,57 @@ namespace MovieWatchlist.Controllers
                     .OrderBy(m => m.Title)
                     .ToListAsync();
             }
-
             return View(vm);
         }
 
-        // ── ADD TO WATCHLIST ──────────────────────────────────────────────────
         // POST /Movies/Add
+        // status received as string so enum binding failures don't silently 400
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Add(int movieId, WatchStatus status)
+        public async Task<IActionResult> Add(int movieId, string status)
         {
             var userId = _userManager.GetUserId(User);
+
+            if (!Enum.TryParse<WatchStatus>(status, ignoreCase: true, out var watchStatus))
+                watchStatus = WatchStatus.Want;
+
+            var movie = await _db.Movies.FindAsync(movieId);
+            if (movie == null)
+            {
+                TempData["Error"] = "Movie not found.";
+                return RedirectToAction("Search");
+            }
 
             var existing = await _db.WatchlistEntries
                 .FirstOrDefaultAsync(e => e.UserId == userId && e.MovieId == movieId);
 
             if (existing != null)
             {
-                existing.Status = status;
+                existing.Status = watchStatus;
+                _db.WatchlistEntries.Update(existing);
             }
             else
             {
                 _db.WatchlistEntries.Add(new WatchlistEntry
                 {
-                    UserId  = userId,
-                    MovieId = movieId,
-                    Status  = status
+                    UserId        = userId,
+                    MovieId       = movieId,
+                    Status        = watchStatus,
+                    PriorityLevel = 3,
+                    DateAdded     = DateTime.UtcNow
                 });
             }
 
             await _db.SaveChangesAsync();
-            TempData["Success"] = "Movie added to your watchlist!";
+            TempData["Success"] = $"\"{movie.Title}\" added to your watchlist!";
             return RedirectToAction("Index", "Home");
         }
 
-        // ── DETAIL / EDIT ─────────────────────────────────────────────────────
         // GET /Movies/Detail/5
         public async Task<IActionResult> Detail(int id)
         {
             var userId = _userManager.GetUserId(User);
-
-            var entry = await _db.WatchlistEntries
+            var entry  = await _db.WatchlistEntries
                 .Include(e => e.Movie)
                 .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
 
@@ -100,25 +104,22 @@ namespace MovieWatchlist.Controllers
             return View(vm);
         }
 
-        // POST /Movies/Detail/5  (Save or MarkWatched)
+        // POST /Movies/Detail/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Detail(int id, DetailViewModel vm, string action)
         {
             var userId = _userManager.GetUserId(User);
-
-            var entry = await _db.WatchlistEntries
+            var entry  = await _db.WatchlistEntries
                 .Include(e => e.Movie)
                 .FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
 
             if (entry == null) return NotFound();
 
-            // Update watchlist entry
             entry.Status        = action == "markWatched" ? WatchStatus.Watched : vm.Status;
-            entry.PriorityLevel = vm.PriorityLevel;
+            entry.PriorityLevel = vm.PriorityLevel > 0 ? vm.PriorityLevel : 3;
             await _db.SaveChangesAsync();
 
-            // Upsert review
             if (vm.Rating > 0)
             {
                 var review = await _db.Reviews
@@ -128,10 +129,11 @@ namespace MovieWatchlist.Controllers
                 {
                     _db.Reviews.Add(new Review
                     {
-                        UserId  = userId,
-                        MovieId = entry.MovieId,
-                        Rating  = vm.Rating,
-                        Comment = vm.Comment ?? ""
+                        UserId     = userId,
+                        MovieId    = entry.MovieId,
+                        Rating     = vm.Rating,
+                        Comment    = vm.Comment ?? "",
+                        ReviewDate = DateTime.UtcNow
                     });
                 }
                 else
@@ -149,7 +151,6 @@ namespace MovieWatchlist.Controllers
             return RedirectToAction("Detail", new { id });
         }
 
-        // ── DELETE ────────────────────────────────────────────────────────────
         // GET /Movies/Delete/5
         public async Task<IActionResult> Delete(int id)
         {
@@ -173,7 +174,6 @@ namespace MovieWatchlist.Controllers
 
             if (entry != null)
             {
-                // Also remove linked review
                 var review = await _db.Reviews
                     .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == entry.MovieId);
                 if (review != null) _db.Reviews.Remove(review);
@@ -186,19 +186,16 @@ namespace MovieWatchlist.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // ── HISTORY ───────────────────────────────────────────────────────────
         // GET /Movies/History
         public async Task<IActionResult> History()
         {
-            var userId = _userManager.GetUserId(User);
-
+            var userId  = _userManager.GetUserId(User);
             var history = await _db.WatchlistEntries
                 .Include(e => e.Movie)
                 .Where(e => e.UserId == userId && e.Status == WatchStatus.Watched)
                 .OrderByDescending(e => e.DateAdded)
                 .ToListAsync();
 
-            // Join reviews
             var movieIds = history.Select(e => e.MovieId).ToList();
             var reviews  = await _db.Reviews
                 .Where(r => r.UserId == userId && movieIds.Contains(r.MovieId))
