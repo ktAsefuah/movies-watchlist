@@ -1,16 +1,19 @@
 @model DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
-    // Internal (page-level) style
     ViewData["InlineStyle"] = @"
         .movie-card { border-left: 3px solid var(--border); }
         .movie-card.priority-1 { border-left-color: #C62828; }
         .movie-card.priority-2 { border-left-color: #F9A825; }
         .movie-card.priority-3 { border-left-color: #1565C0; }
+        .quick-add-card { display:flex; gap:14px; background:var(--surface); border:1px solid var(--border);
+                          border-radius:var(--radius); padding:14px; align-items:flex-start;
+                          transition:all 0.18s ease; margin-bottom:10px; }
+        .quick-add-card:hover { border-color:var(--primary); box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+        .search-results-list { max-height:420px; overflow-y:auto; }
     ";
 }
 
-<!-- Stats row -->
 <div class="stats-row">
   <div class="stat-card">
     <div class="stat-icon blue">🎬</div>
@@ -30,7 +33,6 @@
   </div>
 </div>
 
-<!-- Section header + filter -->
 <div class="section-header">
   <div class="section-title">Your Watchlist</div>
   <div class="section-controls">
@@ -41,9 +43,15 @@
         <!option value="Want"     @(Model.FilterStatus=="Want"     ? "selected":"")>Want to Watch</!option>
         <!option value="Watched"  @(Model.FilterStatus=="Watched"  ? "selected":"")>Watched</!option>
         <!option value="Dropped"  @(Model.FilterStatus=="Dropped"  ? "selected":"")>Dropped</!option>
-</select>
+      </select>
     </form>
-    <a asp-controller="Movies" asp-action="Search" class="btn btn-primary btn-sm">+ Add Movie</a>
+    <div style="position:relative;display:inline-block" id="addDropdownWrap">
+      <button class="btn btn-primary btn-sm" onclick="toggleAddDropdown(event)">+ Add Movie &#9662;</button>
+      <div id="addDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-lg);min-width:200px;z-index:60;overflow:hidden">
+        <button onclick="openQuickAdd();closeAddDropdown()" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;border:none;background:none;cursor:pointer;font-size:14px;color:var(--text);text-align:left" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">🔍 Search catalogue</button>
+        <a href="/Movies/AddCustom" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;font-size:14px;color:var(--text);border-top:1px solid var(--border);text-decoration:none" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">📝 Add manually</a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -52,8 +60,9 @@
   <div class="empty-state">
     <div class="empty-icon">🎬</div>
     <p>Your watchlist is empty.</p>
-    <small>Search for a movie and add it to get started.</small><br/><br/>
-    <a asp-controller="Movies" asp-action="Search" class="btn btn-primary">Search Movies</a>
+    <small>Click <strong>+ Add Movie</strong> to get started.</small><br/><br/>
+    <button class="btn btn-primary" onclick="openQuickAdd()">🔍 Search catalogue</button> 
+    <a href="/Movies/AddCustom" class="btn btn-secondary">📝 Add manually</a>
   </div>
 }
 else
@@ -81,4 +90,149 @@ else
       </div>
     }
   </div>
+}
+
+<div class="modal-overlay hidden" id="quickAddModal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <span class="modal-title">Add a Movie</span>
+      <button class="modal-close" type="button" onclick="closeQuickAdd()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div id="stepSearch">
+        <div style="display:flex;gap:10px;margin-bottom:16px">
+          <div style="position:relative;flex:1">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3)">🔍</span>
+            <input type="text" id="quickSearchInput" class="form-control"
+                   style="padding-left:36px" placeholder="Search by title or genre…"
+                   oninput="liveSearch(this.value)"/>
+          </div>
+        </div>
+        <div class="search-results-list" id="quickResults">
+          <div style="text-align:center;padding:32px;color:var(--text3);font-size:14px">
+            Start typing to search movies…
+          </div>
+        </div>
+      </div>
+
+      <div id="stepConfirm" style="display:none">
+        <div style="display:flex;gap:14px;margin-bottom:20px;align-items:flex-start">
+          <div style="font-size:40px;flex-shrink:0">🎬</div>
+          <div>
+            <div style="font-size:16px;font-weight:600;color:var(--text)" id="confirmTitle"></div>
+            <div style="font-size:13px;color:var(--text3);margin-top:2px" id="confirmMeta"></div>
+            <div style="font-size:13px;color:var(--text2);margin-top:6px;line-height:1.5" id="confirmDesc"></div>
+          </div>
+        </div>
+        <form method="post" action="/Movies/Add" id="quickAddForm">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="movieId" id="quickMovieId"/>
+          <div class="form-group">
+            <label class="form-label">Add as</label>
+            <select name="status" class="form-control">
+              <option value="Want">Want to Watch</option>
+              <option value="Watching">Currently Watching</option>
+              <option value="Watched">Already Watched</option>
+            </select>
+          </div>
+        </form>
+      </div>
+
+    </div>
+    <div class="modal-footer-btns">
+      <button class="btn btn-secondary" type="button" id="backBtn"
+              style="display:none" onclick="backToSearch()">← Back</button>
+      <button class="btn btn-secondary" type="button" onclick="closeQuickAdd()">Cancel</button>
+      <button class="btn btn-primary" type="button" id="confirmAddBtn"
+              style="display:none" onclick="submitQuickAdd()">Add to Watchlist</button>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+<script>
+  var allMovies = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+      ViewBag.AllMovies as List<object> ?? new List<object>()
+  ));
+
+  function openQuickAdd() {
+    document.getElementById('quickAddModal').classList.remove('hidden');
+    document.getElementById('quickSearchInput').value = '';
+    document.getElementById('quickResults').innerHTML =
+      '<div style="text-align:center;padding:32px;color:var(--text3);font-size:14px">Start typing to search movies…</div>';
+    showStep('search');
+    setTimeout(() => document.getElementById('quickSearchInput').focus(), 100);
+  }
+
+  function closeQuickAdd() {
+    document.getElementById('quickAddModal').classList.add('hidden');
+  }
+
+  function showStep(step) {
+    document.getElementById('stepSearch').style.display  = step === 'search'  ? '' : 'none';
+    document.getElementById('stepConfirm').style.display = step === 'confirm' ? '' : 'none';
+    document.getElementById('backBtn').style.display        = step === 'confirm' ? '' : 'none';
+    document.getElementById('confirmAddBtn').style.display  = step === 'confirm' ? '' : 'none';
+  }
+
+  function backToSearch() { showStep('search'); }
+
+  function liveSearch(q) {
+    var box = document.getElementById('quickResults');
+    q = q.trim().toLowerCase();
+    if (!q) {
+      box.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3);font-size:14px">Start typing to search movies…</div>';
+      return;
+    }
+    var matches = allMovies.filter(function(m) {
+      return m.title.toLowerCase().includes(q) || (m.genre || '').toLowerCase().includes(q);
+    });
+    if (!matches.length) {
+      box.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text3);font-size:14px">No results for "' + q + '"</div>';
+      return;
+    }
+    box.innerHTML = matches.map(function(m) {
+      var safeTitle = m.title.replace(/'/g, "\\'");
+      var safeGenre = (m.genre || '').replace(/'/g, "\\'");
+      var safeDesc  = (m.description || '').replace(/'/g, "\\'").replace(/\n/g, ' ');
+      return '<div class="quick-add-card" onclick="pickMovie(' + m.id + ', \'' + safeTitle + '\', ' + m.releaseYear + ', \'' + safeGenre + '\', \'' + safeDesc + '\')" style="cursor:pointer">' +
+        '<div style="font-size:28px;flex-shrink:0">🎬</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:14px;font-weight:600;color:var(--text)">' + m.title + ' (' + m.releaseYear + ')</div>' +
+          '<div style="font-size:12px;color:var(--text3);margin-top:2px">' + (m.genre || '') + '</div>' +
+          '<div style="font-size:13px;color:var(--text2);margin-top:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + (m.description || '') + '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function pickMovie(id, title, year, genre, desc) {
+    document.getElementById('quickMovieId').value   = id;
+    document.getElementById('confirmTitle').textContent = title + ' (' + year + ')';
+    document.getElementById('confirmMeta').textContent  = genre;
+    document.getElementById('confirmDesc').textContent  = desc;
+    showStep('confirm');
+  }
+
+  function toggleAddDropdown(e) {
+    e.stopPropagation();
+    var d = document.getElementById("addDropdown");
+    d.style.display = d.style.display === "none" ? "block" : "none";
+  }
+  function closeAddDropdown() {
+    document.getElementById("addDropdown").style.display = "none";
+  }
+  document.addEventListener("click", function() { closeAddDropdown(); });
+
+  function submitQuickAdd() {
+    var id = document.getElementById('quickMovieId').value;
+    if (!id) { alert('Please select a movie first.'); return; }
+    document.getElementById('quickAddForm').submit();
+  }
+
+  document.getElementById('quickAddModal').addEventListener('click', function(e) {
+    if (e.target === this) closeQuickAdd();
+  });
+</script>
 }
