@@ -1,4 +1,4 @@
-# MovieWatchlist — ASP.NET Core MVC
+# CineTrack — ASP.NET Core MVC
 
 **ITC6355 — Web Application Design and Development**
 Team: Kwesi Asefuah & Priya Srivastava
