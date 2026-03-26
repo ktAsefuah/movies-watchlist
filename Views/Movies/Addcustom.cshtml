@@ -1,0 +1,124 @@
+@{
+    ViewData["Title"] = "Add New Movie";
+    ViewData["InlineStyle"] = @"
+        .char-count { font-size: 11px; color: var(--text3); text-align: right; margin-top: 4px; }
+        .required-star { color: var(--red); margin-left: 2px; }
+    ";
+}
+
+<div class="page-header">
+  <div>
+    <h2>Add New Movie</h2>
+    <p>Manually add a movie that isn't in the catalogue</p>
+  </div>
+  <a asp-controller="Home" asp-action="Index" class="btn btn-secondary btn-sm">← Dashboard</a>
+</div>
+
+<div class="form-card" style="max-width:600px">
+  <form method="post" asp-action="AddCustom" asp-controller="Movies"
+        novalidate onsubmit="return validateAddCustomForm()">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="All" class="validation-summary-errors"></div>
+
+    <!-- Title -->
+    <div class="form-group">
+      <label class="form-label">
+        Title <span class="required-star">*</span>
+      </label>
+      <input type="text" name="title" id="customTitle" class="form-control"
+             placeholder="e.g. The Shawshank Redemption"
+             maxlength="255"
+             value="@(ViewBag.FormData?.title ?? "")"
+             oninput="document.getElementById('titleCount').textContent = this.value.length + '/255'"/>
+      <div class="char-count"><span id="titleCount">0/255</span></div>
+      <div class="invalid-feedback" id="titleErr"></div>
+    </div>
+
+    <!-- Release Year + Genre (side by side) -->
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">
+          Release Year <span class="required-star">*</span>
+        </label>
+        <input type="number" name="releaseYear" id="customYear" class="form-control"
+               placeholder="e.g. 1994"
+               min="1888" max="@(DateTime.Now.Year + 2)"
+               value="@(ViewBag.FormData?.releaseYear > 0 ? ViewBag.FormData?.releaseYear : "")"/>
+        <div class="invalid-feedback" id="yearErr"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Genre</label>
+        <input type="text" name="genre" id="customGenre" class="form-control"
+               placeholder="e.g. Drama / Thriller"
+               maxlength="120"
+               value="@(ViewBag.FormData?.genre ?? "")"/>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <textarea name="description" id="customDesc" class="form-control" rows="4"
+                maxlength="1000"
+                placeholder="Brief synopsis or notes about the movie…"
+                oninput="document.getElementById('descCount').textContent = this.value.length + '/1000'">@(ViewBag.FormData?.description ?? "")</textarea>
+      <div class="char-count"><span id="descCount">0/1000</span></div>
+    </div>
+
+    <!-- Watchlist status -->
+    <div class="form-group">
+      <label class="form-label">
+        Add to Watchlist as <span class="required-star">*</span>
+      </label>
+      <select name="status" class="form-control">
+        <option value="Want">Want to Watch</option>
+        <option value="Watching">Currently Watching</option>
+        <option value="Watched">Already Watched</option>
+      </select>
+    </div>
+
+    <div class="form-footer">
+      <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">Save &amp; Add to Watchlist</button>
+    </div>
+  </form>
+</div>
+
+@section Scripts {
+<script>
+  function validateAddCustomForm() {
+    var title = document.getElementById('customTitle').value.trim();
+    var year  = parseInt(document.getElementById('customYear').value);
+    var now   = new Date().getFullYear();
+    var valid = true;
+
+    // Reset errors
+    document.getElementById('titleErr').style.display = 'none';
+    document.getElementById('yearErr').style.display  = 'none';
+    document.getElementById('customTitle').classList.remove('is-invalid');
+    document.getElementById('customYear').classList.remove('is-invalid');
+
+    if (!title) {
+      document.getElementById('titleErr').textContent  = 'Title is required.';
+      document.getElementById('titleErr').style.display = 'block';
+      document.getElementById('customTitle').classList.add('is-invalid');
+      valid = false;
+    }
+
+    if (!year || year < 1888 || year > now + 2) {
+      document.getElementById('yearErr').textContent  = 'Enter a valid year between 1888 and ' + (now + 2) + '.';
+      document.getElementById('yearErr').style.display = 'block';
+      document.getElementById('customYear').classList.add('is-invalid');
+      valid = false;
+    }
+
+    if (!valid) {
+      alert('Please fix the highlighted fields before saving.');
+      return false;
+    }
+
+    return confirm('Add "' + title + '" (' + year + ') to your watchlist?');
+  }
+</script>
+}
