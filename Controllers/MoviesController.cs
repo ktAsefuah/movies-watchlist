@@ -35,8 +35,7 @@ namespace MovieWatchlist.Controllers
             return View(vm);
         }
 
-        // POST /Movies/Add
-        // status received as string so enum binding failures don't silently 400
+        // POST /Movies/Add  — add existing movie to watchlist
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Add(int movieId, string status)
@@ -67,6 +66,87 @@ namespace MovieWatchlist.Controllers
                 {
                     UserId        = userId,
                     MovieId       = movieId,
+                    Status        = watchStatus,
+                    PriorityLevel = 3,
+                    DateAdded     = DateTime.UtcNow
+                });
+            }
+
+            await _db.SaveChangesAsync();
+            TempData["Success"] = $"\"{movie.Title}\" added to your watchlist!";
+            return RedirectToAction("Index", "Home");
+        }
+
+        // GET /Movies/AddCustom — show form to manually add a new movie
+        public IActionResult AddCustom()
+        {
+            return View();
+        }
+
+        // POST /Movies/AddCustom — save new movie + add to watchlist
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddCustom(
+            string title, int releaseYear, string genre,
+            string description, string status)
+        {
+            // Server-side validation
+            if (string.IsNullOrWhiteSpace(title))
+                ModelState.AddModelError("title", "Title is required.");
+
+            if (releaseYear < 1888 || releaseYear > DateTime.Now.Year + 2)
+                ModelState.AddModelError("releaseYear", "Enter a valid release year.");
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.FormData = new { title, releaseYear, genre, description, status };
+                return View();
+            }
+
+            var userId = _userManager.GetUserId(User);
+
+            if (!Enum.TryParse<WatchStatus>(status, ignoreCase: true, out var watchStatus))
+                watchStatus = WatchStatus.Want;
+
+            // Check if a movie with the same title + year already exists
+            var existing = await _db.Movies
+                .FirstOrDefaultAsync(m => m.Title.ToLower() == title.Trim().ToLower()
+                                       && m.ReleaseYear == releaseYear);
+
+            Movie movie;
+            if (existing != null)
+            {
+                movie = existing;
+            }
+            else
+            {
+                // Create the new movie
+                movie = new Movie
+                {
+                    Title       = title.Trim(),
+                    ReleaseYear = releaseYear,
+                    Genre       = genre?.Trim(),
+                    Description = description?.Trim()
+                };
+                _db.Movies.Add(movie);
+                await _db.SaveChangesAsync();
+            }
+
+            // Add to the user's watchlist
+            var watchlistEntry = await _db.WatchlistEntries
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.MovieId == movie.Id);
+
+            if (watchlistEntry != null)
+            {
+                watchlistEntry.Status = watchStatus;
+                _db.WatchlistEntries.Update(watchlistEntry);
+            }
+            else
+            {
+                _db.WatchlistEntries.Add(new WatchlistEntry
+                {
+                    UserId        = userId,
+                    MovieId       = movie.Id,
                     Status        = watchStatus,
                     PriorityLevel = 3,
                     DateAdded     = DateTime.UtcNow
